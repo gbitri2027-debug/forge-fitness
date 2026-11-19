@@ -42,10 +42,79 @@ function updatePending(changes){
   setStatus(navigator.onLine?'Changes pending':'Offline · pending');scheduleSync(1300);
 }
 function onLocalUpdate(before,after){updatePending(changedRecords(before,after));}
+
+// Decode Firestore's documented REST Value format. This is only used for reads.
+function decodeFirestoreValue(v){
+  if(!v||typeof v!=='object')throw new Error('Unexpected Firestore response');
+  if('nullValue' in v)return null;
+  if('stringValue' in v)return v.stringValue;
+  if('booleanValue' in v)return v.booleanValue;
+  if('integerValue' in v)return Number(v.integerValue);
+  if('doubleValue' in v)return Number(v.doubleValue);
+  if('timestampValue' in v)return v.timestampValue;
+  if('arrayValue' in v)return (v.arrayValue.values||[]).map(decodeFirestoreValue);
+  if('mapValue' in v)return Object.fromEntries(Object.entries(v.mapValue.fields||{}).map(([key,value])=>[key,decodeFirestoreValue(value)]));
+  throw new Error('Unsupported Firestore field type');
+}
+
+// The REST API uses the current Firebase user's ID token AND the same security rules.
+// It never falls back to stale cached data, so it is safe for first-time merge review.
+async function fetchCloudViaREST(){
+  if(!user)throw new Error('Please sign in before reviewing cloud data');
+  const token=await user.getIdToken();
+  const base=`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(cfg.projectId)}/databases/(default)/documents/users/${encodeURIComponent(user.uid)}/items`;
+  let pageToken='',pages=0;
+  const records=[];
+  do{
+    if(++pages>200)throw new Error('Cloud has too many pages for a safe review');
+    const url=new URL(base);
+    url.searchParams.set('pageSize','250');
+    if(pageToken)url.searchParams.set('pageToken',pageToken);
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),15000);
+    let response;
+    try{
+      response=await fetch(url.toString(),{
+        headers:{Authorization:`Bearer ${token}`},
+        cache:'no-store',signal:controller.signal
+      });
+    }finally{clearTimeout(timeout);}
+    if(!response.ok){
+      if(response.status===401||response.status===403)throw new Error(`Cloud access rejected (HTTP ${response.status}). Check the Firebase UID and published Firestore rules.`);
+      throw new Error(`Cloud REST connection returned HTTP ${response.status}`);
+    }
+    const data=await response.json();
+    for(const doc of data.documents||[]){
+      const record=Object.fromEntries(Object.entries(doc.fields||{}).map(([k,v])=>[k,decodeFirestoreValue(v)]));
+      if(!validCloudRecord(record))throw new Error('Cloud returned an invalid record; merge stopped for safety');
+      records.push(record);
+    }
+    pageToken=data.nextPageToken||'';
+  }while(pageToken);
+  return records;
+}
+
 async function fetchCloud(){
-  const snapshot=await fns.getDocsFromServer(collectionRef()), result=[];
-  snapshot.forEach(s=>{const rec=s.data();if(validCloudRecord(rec))result.push(rec);});
-  return result;
+  // The normal SDK request is preferred. On some iOS Safari versions its server
+  // read fails despite successful authentication; try a fresh REST read instead.
+  try{
+    let timer;
+    const timeout=new Promise((_,reject)=>{
+      timer=setTimeout(()=>reject(new Error('Firestore SDK server read timed out')),12000);
+    });
+    let snapshot;
+    try{snapshot=await Promise.race([fns.getDocsFromServer(collectionRef()),timeout]);}
+    finally{clearTimeout(timer);}
+    const result=[];
+    snapshot.forEach(s=>{const rec=s.data();if(validCloudRecord(rec))result.push(rec);});
+    return result;
+  }catch(sdkError){
+    try{return await fetchCloudViaREST();}
+    catch(restError){
+      const sdkDescription=sdkError?.code||sdkError?.message||'unknown SDK error';
+      throw new Error(`Live cloud read failed. SDK: ${sdkDescription}. REST: ${restError.message}. No data was merged.`);
+    }
+  }
 }
 function maybeBackup(){host.downloadBackup();}
 async function prepareInitialMerge(){
@@ -261,7 +330,6 @@ async function handleForm(e){
   const submit=form.querySelector('[type=submit]');if(submit)submit.disabled=true;
   try{
     if(kind==='login')await fns.signInWithEmailAndPassword(auth,email,password);
-
     form.reset();
   }catch(err){setStatus('Sign-in error',err.message);host.toast('Account: '+err.message,'error');}
   finally{if(submit?.isConnected)submit.disabled=false;}
@@ -298,14 +366,13 @@ async function initialize(){
     fns={...authMod,...fireMod};
     const app=appMod.initializeApp(cfg);
     auth=authMod.getAuth(app);
-    // iOS/iPadOS WebKit has known Firestore WebChannel reliability issues.
-    // Force long polling *only on iOS*; retain normal transport elsewhere.
-    // This changes neither the storage schema nor the synchronization records.
-    const isIOSWebKit = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    fireDB = isIOSWebKit
-      ? fireMod.initializeFirestore(app, { experimentalForceLongPolling: true })
-      : fireMod.initializeFirestore(app,{experimentalForceLongPolling:true});
+    // Safari/iOS can require long polling. Desktop uses the SDK default.
+    // Changing this does not alter local or cloud records.
+    const isIOSWebKit=/iPad|iPhone|iPod/.test(navigator.userAgent)||
+      (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+    fireDB=isIOSWebKit
+      ? fireMod.initializeFirestore(app,{experimentalForceLongPolling:true})
+      : fireMod.getFirestore(app);
     await authMod.setPersistence(auth,authMod.browserLocalPersistence);
     authMod.onAuthStateChanged(auth,async nextUser=>{await startUserSession(nextUser);authReady=true;},err=>setStatus('Auth error',err.message));
   }catch(err){setStatus('Cloud unavailable',err.message);}
