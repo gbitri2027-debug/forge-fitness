@@ -1,0 +1,173 @@
+/* FORGE UI polish — isolated presentation layer. No changes to Firebase or saved data. */
+:root { --forge-ui-nav-clearance: 92px; }
+
+/* The native arrow was almost touching the border. Preserve the theme with one custom caret. */
+.field select,
+.filters select,
+select.control,
+select.flat-select,
+.card select:not(.set-table select) {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 42px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='m6 9 6 6 6-6' stroke='%23d3d5de' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px 16px;
+}
+.field select:focus-visible,
+select.control:focus-visible,
+.btn:focus-visible,
+.bottom-nav button:focus-visible,
+.forge-floating-rest:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* The cloud sign-in card and the preference cards should not visually merge. */
+#forge-sync-panel { margin-bottom: 20px; }
+#forge-sync-panel .stack { gap: 14px; }
+#forge-sync-panel .field { gap: 8px; }
+#forge-sync-panel form .btn { margin-top: 5px; }
+#forge-sync-panel .notice, #forge-sync-panel .info-box { overflow-wrap: anywhere; }
+
+/* Make long headings and generated labels safe on narrow screens. */
+.page-header, .topbar, .card-head, .row, .list-item, .session-top { min-width: 0; }
+.card, .info-box, .notice, .session-block, .program-card { overflow-wrap: break-word; }
+.page-header h1, .hero h2, .exercise-name, .main-line { overflow-wrap: anywhere; }
+.modal, .main { min-width: 0; }
+
+/* Compact rest companion: only visible if main countdown is out of view. */
+.forge-floating-rest {
+  position: fixed;
+  z-index: 34;
+  right: 20px;
+  bottom: 24px;
+  width: auto;
+  min-width: 133px;
+  min-height: 62px;
+  border: 1px solid #835d37;
+  border-radius: 17px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 15px;
+  color: var(--text);
+  background: linear-gradient(135deg, #352a20, #1b1e22 85%);
+  box-shadow: 0 12px 30px rgba(0,0,0,.42);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(10px) scale(.96);
+  transition: opacity .22s ease, transform .22s ease, visibility .22s;
+  font: inherit;
+  text-align: left;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.forge-floating-rest.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+.forge-floating-rest__symbol {
+  width: 37px;
+  height: 37px;
+  flex: 0 0 37px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #a76943;
+  border-radius: 12px;
+  color: var(--accent2);
+  font-size: 19px;
+}
+.forge-floating-rest__label {
+  display: block;
+  color: #b7b9c0;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .09em;
+  line-height: 1.3;
+}
+.forge-floating-rest__clock {
+  display: block;
+  color: var(--lime);
+  font-size: 22px;
+  line-height: 1.05;
+  margin-top: 2px;
+  font-weight: 900;
+  letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums;
+}
+.forge-floating-rest.is-complete .forge-floating-rest__clock { color: var(--green); font-size: 16px; }
+
+/* Modals respect notches, browser viewports and the mobile keyboard. */
+.modal-overlay {
+  padding-top: max(16px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
+}
+.modal {
+  max-height: calc(100dvh - max(32px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px) + 24px));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.modal .modal-actions { padding-bottom: 2px; }
+
+@media (max-width: 800px) {
+  /* viewport-fit=cover and black-translucent status bar require explicit top safe-area. */
+  .main {
+    padding-top: calc(22px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+  }
+  .topbar { gap: 8px; align-items: center; }
+  .topbar > :first-child { flex: 1 1 auto; min-width: 0; }
+  .topbar > :first-child > div { overflow-wrap: anywhere; }
+  .head-right { flex-shrink: 0; gap: 7px; }
+  .head-right .btn.icon { min-height: 44px; min-width: 44px; width: 44px; height: 44px; }
+  .bottom-nav {
+    padding: 8px 7px calc(9px + env(safe-area-inset-bottom, 0px));
+    min-height: calc(67px + env(safe-area-inset-bottom, 0px));
+  }
+  .bottom-nav button {
+    min-height: 44px;
+    min-width: 48px;
+    justify-content: center;
+  }
+  .forge-floating-rest {
+    right: 13px;
+    bottom: calc(var(--forge-ui-nav-clearance) + env(safe-area-inset-bottom, 0px));
+    min-height: 58px;
+    max-width: min(220px, calc(100vw - 26px));
+  }
+  .toast {
+    right: 12px;
+    left: 12px;
+    max-width: none;
+    bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+  }
+  .btn.small:not(.set-table .btn), .tab { min-height: 40px; }
+  .modal-actions .btn { min-height: 44px; }
+}
+@media (max-width: 520px) {
+  .topbar .head-right .tag { max-width: 118px; overflow: hidden; text-overflow: ellipsis; }
+  .card-head { flex-wrap: wrap; }
+  #forge-sync-panel { margin-bottom: 17px; }
+  #forge-sync-panel .card-head { gap: 12px; }
+  .modal-overlay { padding-inline: 10px; }
+  .modal { border-radius: 17px; max-width: 100%; }
+  .topbar { margin-bottom: 24px; }
+  .forge-floating-rest__clock { font-size: 20px; }
+  .forge-floating-rest { padding: 10px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .forge-floating-rest { transition: none; transform: none; }
+}
+/* Keep compact icon buttons tappable without widening the workout data table. */
+@media (max-width: 800px) {
+  .tiny-btn { min-height: 38px; }
+  .set-table .tiny-btn { min-height: 35px; height: 35px; }
+  .add-row { min-height: 44px; }
+  html { -webkit-text-size-adjust: 100%; }
+}
