@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // IMPORTANT: Before publishing these rules, replace the UID below with the
+    // one shown in Firebase Console → Authentication → Users. Do not use email.
+    function owner() {
+      return request.auth != null &&
+             request.auth.uid == 'REPLACE_WITH_YOUR_FIREBASE_USER_UID';
+    }
+    match /users/{userId}/items/{itemId} {
+      allow read: if owner() && request.auth.uid == userId;
+      allow create, update: if owner() && request.auth.uid == userId &&
+        request.resource.data.keys().hasOnly([
+          'kind','entityId','value','deleted','rev','editedBy','updatedAt'
+        ]) &&
+        request.resource.data.kind in [
+          'exercises','programs','workouts','bodyRecords','goals',
+          'foodsCustom','savedMeals','foodLogs','cardioSessions','sleepRecords',
+          'favorites','foodFavorites','settings'
+        ] &&
+        request.resource.data.entityId is string &&
+        request.resource.data.rev is int && request.resource.data.rev > 0 &&
+        request.resource.data.deleted is bool;
+      allow delete: if false; // use versioned tombstones to prevent resurrection
+    }
+    match /users/{userId}/meta/{metaId} {
+      allow read: if owner() && request.auth.uid == userId && metaId == 'activity';
+      allow create, update: if owner() && request.auth.uid == userId &&
+        metaId == 'activity' &&
+        request.resource.data.keys().hasOnly(['writer','changedAt']);
+      allow delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,97 +1,64 @@
-# FORGE Fitness 1.1 — interaction fixes
+# FORGE Fitness 1.2 — private device sync, still free
 
-**Fix in v1.1:** Buttons inside dialogs and exercise pickers now work, including Cancel, selecting an exercise, editing routines, and changing favorites. This was caused by the dialog stopping click events from reaching the app's button handlers. The service worker was also updated to fetch fresh files when online while retaining offline support.
+FORGE is a sporty offline-first workout, body, nutrition, cardio, and sleep tracker. It saves immediately to IndexedDB. Version 1.2 **adds optional private synchronization** between your MacBook and iPhone using Firebase's no-billing Spark plan and Cloud Firestore.
 
-**Upgrading without losing data:** Keep your existing local app address (for example, `http://localhost:8080`) and replace the old app files with these files in the same folder. Never clear site data or change the localhost port if you want to retain the existing IndexedDB records. Before replacing files, use Settings → Export complete JSON backup. Restart the local server if needed, then refresh the page twice to allow the service worker to update. An already installed PWA may also need to be closed and reopened.
+**Read [FREE-SYNC-SETUP.md](FREE-SYNC-SETUP.md) before changing your app.** It contains the exact step-by-step process for creating a no-billing project, publishing secure rules, configuring the public web app, safeguarding backups, updating GitHub Pages, and safely merging existing Mac/iPhone data.
 
----
+## Absolute €0 rule
 
-# FORGE — Personal Fitness Tracker
+- Keep GitHub Pages as your free website host.
+- Choose Firebase **Spark (no cost)** only. Do not add a billing account or use a free trial that switches to paid.
+- No paid APIs, Cloud Functions, Firebase Storage backup fees, Google Cloud trial, analytics, or subscription is required.
+- If a payment is requested, **stop**. Local app functionality remains available; do not proceed.
+- A provider's plans can change. There is no promise that third-party free plans will last forever. Without billing enabled, any cloud usage above Spark quota is interrupted rather than charged.
 
-A complete **local-first**, **single-user**, **100% free** fitness tracking web app. No account, API key, paid service, database server, package manager, or internet connection is required for normal use after installation.
+## What stays local?
 
-![FORGE icon](assets/icon-192.png)
+- Every screen and feature works with no Firebase configuration. The new code is opt-in.
+- Existing IndexedDB storage and v1 backup format are preserved.
+- Unfinished workout sessions and active GPS recording remain only on the device currently running them.
+- JSON exports are still necessary: cloud sync is **not** a replacement for backups.
 
-## Run it on your computer
+## What can sync when configured?
 
-These are ordinary static website files. The reliable way to run them is with a local server:
+Completed workouts, workout plans, custom exercises, favorites, measurements, performance goals, foods and meals, nutrition logs, completed cardio, sleep records, and settings. PRs and charts are derived from these records locally. Records use stable IDs and per-record version checks, with conflict review rather than silent overwriting.
 
-1. Unzip the `forge-fitness.zip` download.
-2. Open a terminal inside the extracted `forge-fitness` directory.
-3. Run: `python3 -m http.server 8080` (Windows may use `py -m http.server 8080`).
-4. Open **http://localhost:8080** in Chrome, Safari, Edge or Firefox.
-5. In a compatible desktop browser, choose **Install app** from the address bar or browser menu if available.
+## How to run locally
 
-No Python? Any local static HTTP server works, including VS Code's Live Server extension. The app doesn't need a Node.js installation.
-
-**Important:** Opening `index.html` directly via `file://` may work visually, but IndexedDB and service workers are not consistently supported on `file://` origins. Use localhost or HTTPS for reliable saving and installation.
-
-## Use it on your iPhone
-
-For an iPhone to access it independently, you can publish this static folder on a **free HTTPS static host**, such as GitHub Pages. This hosts only the *app code*, not your personal workout or nutrition data.
-
-1. Create a GitHub repository and upload all files from the `forge-fitness` folder at the repository root.
-2. Go to **Settings → Pages → Build and deployment → Deploy from a branch**, choose your main branch and root directory, then save.
-3. Open the published HTTPS website on your iPhone in Safari.
-4. Tap **Share → Add to Home Screen**, then open FORGE from its icon.
-5. Open **Settings → Export complete JSON backup** regularly and save it in Files or another safe location.
-
-A public static website does not make your personal data public: FORGE does not upload any logs and has no backend. **However, your data stays in the browser/app container where you entered it**. It will not automatically appear on another device, or necessarily in Safari if you used a separate Home Screen app. To move records, use JSON export and import.
-
-## Features
-
-- Workout-focused home dashboard; complete workout history
-- Manual programs, rule-generated programs, editable training sessions, fixed weekdays or flexible sequences
-- Gym/home equipment filters; default four-day training week; choose duration when generating
-- Built-in exercise library and custom exercises; favorites and history
-- Autosaved live workout logging: sets, reps, kilograms, timed holds, assistance, RPE, RIR, notes, rest timer
-- PR detection (heaviest weight, highest reps at a weight, estimated 1RM), training volume and reports
-- Body weight, estimated body fat and circumference measurements with trends
-- Performance goals, muscle-group set distribution and explainable progression suggestions
-- Nutrition: built-in reference foods, custom foods, portions, meals, calorie/protein targets, history
-- Sleep: quick or detailed logs, duration and quality charts
-- Cardio: manual logs or timer/GPS when the browser permits it, route-shape preview, historical trends
-- Offline application shell through a service worker; IndexedDB autosaving
-- Versioned JSON backup/restore with validation and confirmation; CSV exports
-
-## What is *not* included
-
-- No remote synchronization or account system. Records stay in the device's IndexedDB.
-- No paid generative AI. Workout suggestions come from deterministic, built-in rules.
-- No commercial food API. Common food values are approximate, editable through custom entries.
-- GPS route drawing shows a shape, **not map tiles**, and can't be relied on while the phone's browser is suspended.
-- Generated workout plans are templates, not a personalized medical or professional training assessment.
-- No notifications when the app is fully closed. Rest timer displays correct time when you reopen it.
-
-## Data protection — please read
-
-The application saves to the **origin-local IndexedDB** database named `forge-fitness-db`. Clearing the website's data, browser profiles, private browsing data or uninstalling an app can erase records. The application does **not** automatically back up anywhere. Export a JSON backup after meaningful updates and keep copies outside the browser. Import replaces current data only after a warning; export current data before restoring another backup.
-
-The full JSON backup includes optional GPS coordinates, food, sleep and other personally sensitive records. Store and share it with care.
-
-## Testing
-
-With Node.js installed, run the built-in no-dependency smoke test:
+Unzip. In the `forge-fitness` folder run:
 
 ```bash
-node smoke-test.cjs
+python3 -m http.server 8080
 ```
 
-It verifies all 10 screen renderers and the main program, equipment, macronutrient and workout statistics calculations. It does **not** replace manual testing in a real iOS/browser environment.
+Then browse to <http://localhost:8080>. You can use it normally without cloud configuration. Do not open `index.html` as a `file://` URL if you need reliable browser storage and PWA support.
 
-## Technical details
+## Files
 
-- Architecture: standard HTML, CSS and modern JavaScript with modular app sections in one dependency-free source file.
-- This deliberately differs from the **preferred** React/TypeScript/Vite stack in the specification: it avoids third-party build dependencies and works as an offline static app without installing packages or paying for services.
-- Storage: IndexedDB, one atomic versioned state record in a single object store.
-- No network requests are made by the application itself beyond fetching its own static assets when served over HTTP(S).
-- Application assets are cached by the `sw.js` service worker on supported origins.
-- Responsive dark athletic interface with accessible labels and touch targets.
+- `index.html`, `styles.css`, `app.js`, `sw.js`, `manifest.webmanifest`, `assets/`: existing app (with small additions).
+- `sync-client.mjs`: optional Firebase Authentication, Cloud Firestore sync, offline outbox, and conflict review.
+- `sync-core.mjs`: framework-independent sync record transformations.
+- `firebase-config.js`: **PUBLIC** Firebase browser configuration. `null` by default.
+- `firestore.rules`: restricts database access to one user UID, which you **must insert** before publishing.
+- `FREE-SYNC-SETUP.md`: the required setup and data migration instructions.
+- `smoke-test.cjs`: original v1.1 application test suite.
+- `sync-core.test.mjs`: separate sync transformation and data safety tests.
 
-## Updating the application
+## Run checks (optional; requires Node.js)
 
-Keep the same site URL and upload the new files. The app's storage is associated with that URL; changing the origin does not transfer records. Back up **before any update**. The service worker currently uses `forge-core-v1`; when shipping an updated release, bump the cache version in `sw.js` so users receive fresh files.
+```bash
+node --check app.js
+node --check sync-client.mjs
+node --check sync-core.mjs
+node smoke-test.cjs
+node --test sync-core.test.mjs
+```
 
-## License
+## Important limits / verification
 
-For personal use. Application code delivered as part of your requested project; external fitness/exercise and nutrition data are simplified illustrative reference values rather than a licensed commercial database.
+- The implementation runs entirely on free-capable services, but **cloud sync will not function** until you create and configure your own Firebase Spark project and securely publish the UID-scoped Firestore rules.
+- The offline application operates without a configured cloud backend.
+- Background synchronization cannot be guaranteed on iPhone when Safari/the installed web app is suspended.
+- Very large GPS route documents are kept locally if too large for safe Firestore upload; consult Settings for a warning.
+- This release was syntax-checked and the bundled program/data-merge tests passed, but Firebase live integration, GitHub deployment, and real Mac/iPhone end-to-end behavior remain **unverified** until your Firebase account is configured.
+- Keep original JSON backups and don't clear local website data before migration.
