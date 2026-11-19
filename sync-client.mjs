@@ -1,3 +1,4 @@
+
 /* FORGE 1.2 cloud synchronization. Firebase Spark only; no billing integration. */
 import {COLLECTIONS,SINGLETONS,flatten,recordKey,changedRecords,applyRecords,validCloudRecord,makeInitialMerge,createPending,safeToSync,sameValue} from './sync-core.mjs';
 
@@ -95,8 +96,14 @@ async function fetchCloudViaREST(){
 }
 
 async function fetchCloud(){
-  // The normal SDK request is preferred. On some iOS Safari versions its server
-  // read fails despite successful authentication; try a fresh REST read instead.
+  // On iOS Safari, use the authenticated REST read directly. A separate manual
+  // Firestore REST test succeeded while SDK reads failed in this environment.
+  // This is read-only and does not alter the local or remote data.
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIOS) return fetchCloudViaREST();
+
+  // Other platforms keep the normal SDK read, with REST as a fallback.
   try{
     let timer;
     const timeout=new Promise((_,reject)=>{
