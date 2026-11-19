@@ -296,7 +296,16 @@ async function initialize(){
     const version='13.3.0',base=`https://www.gstatic.com/firebasejs/${version}/`;
     const [appMod,authMod,fireMod]=await Promise.all([import(base+'firebase-app.js'),import(base+'firebase-auth.js'),import(base+'firebase-firestore.js')]);
     fns={...authMod,...fireMod};
-    const app=appMod.initializeApp(cfg);auth=authMod.getAuth(app);fireDB=fireMod.getFirestore(app);
+    const app=appMod.initializeApp(cfg);
+    auth=authMod.getAuth(app);
+    // iOS/iPadOS WebKit has known Firestore WebChannel reliability issues.
+    // Force long polling *only on iOS*; retain normal transport elsewhere.
+    // This changes neither the storage schema nor the synchronization records.
+    const isIOSWebKit = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    fireDB = isIOSWebKit
+      ? fireMod.initializeFirestore(app, { experimentalForceLongPolling: true })
+      : fireMod.getFirestore(app);
     await authMod.setPersistence(auth,authMod.browserLocalPersistence);
     authMod.onAuthStateChanged(auth,async nextUser=>{await startUserSession(nextUser);authReady=true;},err=>setStatus('Auth error',err.message));
   }catch(err){setStatus('Cloud unavailable',err.message);}
