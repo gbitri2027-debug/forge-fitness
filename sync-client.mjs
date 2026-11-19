@@ -79,7 +79,7 @@ async function fetchCloudViaREST(){
         headers:{Authorization:`Bearer ${token}`},
         cache:'no-store',signal:controller.signal
       });
-    }finally{clearTimeout(timeout);}
+    }catch(e){throw new Error(e?.name==='AbortError'?'Cloud request timed out after 15 s':'Cloud request was cancelled or blocked before any response ('+(e?.message||'error')+')');}finally{clearTimeout(timeout);}
     if(!response.ok){
       if(response.status===401||response.status===403)throw new Error(`Cloud access rejected (HTTP ${response.status}). Check the Firebase UID and published Firestore rules.`);
       throw new Error(`Cloud REST connection returned HTTP ${response.status}`);
@@ -127,9 +127,11 @@ function maybeBackup(){host.downloadBackup();}
 async function prepareInitialMerge(){
   if(!user||busy||meta?.enabled)return;
   if(!confirm('FORGE will download an additional local JSON backup and inspect your cloud records. Nothing is changed or uploaded during this review. Continue?'))return;
-  maybeBackup();busy=true;setStatus('Reviewing records…');
-  try{
-    const current=host.getState(),remote=await fetchCloud();
+  busy=true;setStatus('Reviewing records…');
+  busy=true;setStatus('Reviewing records…');
+try{
+const current=host.getState(),remote=await fetchCloud();
+maybeBackup();
     const result=makeInitialMerge(current,remote,uid);
     const fresh=COLLECTIONS.every(k=>!current[k]?.length)&&!current.activeWorkout&&!current.activeCardio&&!current.favorites?.length&&!current.foodFavorites?.length;
     if(fresh){
