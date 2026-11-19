@@ -305,7 +305,7 @@ async function initialize(){
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     fireDB = isIOSWebKit
       ? fireMod.initializeFirestore(app, { experimentalForceLongPolling: true })
-      : fireMod.getFirestore(app);
+      : fireMod.initializeFirestore(app,{experimentalForceLongPolling:true});
     await authMod.setPersistence(auth,authMod.browserLocalPersistence);
     authMod.onAuthStateChanged(auth,async nextUser=>{await startUserSession(nextUser);authReady=true;},err=>setStatus('Auth error',err.message));
   }catch(err){setStatus('Cloud unavailable',err.message);}
